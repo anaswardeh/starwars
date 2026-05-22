@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: starwars-express
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
