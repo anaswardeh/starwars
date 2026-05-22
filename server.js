@@ -1,12 +1,12 @@
 // Dependencies
 // =============================================================
-var express = require("express");
-var path = require("path");
+const express = require("express");
+const path = require("path");
 
 // Sets up the Express App
 // =============================================================
-var app = express();
-var PORT = process.env.PORT || 3000;
+const app = express();
+const PORT = process.env.PORT || 3000;
 
 // Sets up the Express app to handle data parsing
 app.use(express.urlencoded({ extended: true }));
@@ -14,7 +14,7 @@ app.use(express.json());
 
 // Star Wars Characters (DATA)
 // =============================================================
-var characters = [
+const characters = [
   {
     routeName: "yoda",
     name: "Yoda",
@@ -38,10 +38,60 @@ var characters = [
   }
 ];
 
+// Helpers
+// =============================================================
+function toRouteName(name) {
+  return name.replace(/\s+/g, "").toLowerCase();
+}
+
+function findCharacter(routeName) {
+  return characters.find(function(character) {
+    return character.routeName === routeName;
+  });
+}
+
+// Validates and normalizes the body of a create-character request.
+// Returns { character } on success or { error } on failure.
+function parseNewCharacter(body) {
+  if (!body || typeof body !== "object") {
+    return { error: "Request body must be a JSON object." };
+  }
+
+  const name = typeof body.name === "string" ? body.name.trim() : "";
+  const role = typeof body.role === "string" ? body.role.trim() : "";
+
+  if (!name) {
+    return { error: "A non-empty 'name' is required." };
+  }
+  if (!role) {
+    return { error: "A non-empty 'role' is required." };
+  }
+
+  const age = Number(body.age);
+  const forcePoints = Number(body.forcePoints);
+
+  if (!Number.isFinite(age) || age < 0) {
+    return { error: "'age' must be a non-negative number." };
+  }
+  if (!Number.isFinite(forcePoints) || forcePoints < 0) {
+    return { error: "'forcePoints' must be a non-negative number." };
+  }
+
+  return {
+    character: {
+      routeName: toRouteName(name),
+      name: name,
+      role: role,
+      age: age,
+      forcePoints: forcePoints
+    }
+  };
+}
+
 // Routes
 // =============================================================
 
-// Basic route that sends the user first to the AJAX Page
+// Basic route that sends the user first to the view page
 app.get("/", function(req, res) {
   res.sendFile(path.join(__dirname, "view.html"));
 });
@@ -52,39 +102,45 @@ app.get("/add", function(req, res) {
 
 // Displays all characters
 app.get("/api/characters", function(req, res) {
-  return res.json(characters);
+  res.json(characters);
 });
 
-// Displays a single character, or returns false
+// Displays a single character, or returns a 404
 app.get("/api/characters/:character", function(req, res) {
-  var chosen = req.params.character;
+  const chosen = findCharacter(req.params.character);
 
-  console.log(chosen);
-
-  for (var i = 0; i < characters.length; i++) {
-    if (chosen === characters[i].routeName) {
-      return res.json(characters[i]);
-    }
+  if (!chosen) {
+    return res.status(404).json({ error: "Character not found." });
   }
 
-  return res.json(false);
+  res.json(chosen);
 });
 
 // Create New Characters - takes in JSON input
 app.post("/api/characters", function(req, res) {
-  // req.body hosts is equal to the JSON post sent from the user
-  // This works because of our body parsing middleware
-  var newCharacter = req.body;
+  const result = parseNewCharacter(req.body);
 
-  // Using a RegEx Pattern to remove spaces from newCharacter
-  // You can read more about RegEx Patterns later https://www.regexbuddy.com/regex.html
-  newCharacter.routeName = newCharacter.name.replace(/\s+/g, "").toLowerCase();
+  if (result.error) {
+    return res.status(400).json({ error: result.error });
+  }
 
-  console.log(newCharacter);
+  if (findCharacter(result.character.routeName)) {
+    return res.status(409).json({ error: "A character with that name already exists." });
+  }
 
-  characters.push(newCharacter);
+  characters.push(result.character);
+  res.status(201).json(result.character);
+});
 
-  res.json(newCharacter);
+// Catch-all for unknown routes
+app.use(function(req, res) {
+  res.status(404).json({ error: "Resource not found." });
+});
+
+// Error handler
+app.use(function(err, req, res, next) {
+  console.error(err);
+  res.status(500).json({ error: "Something went wrong on the server." });
 });
 
 // Starts the server to begin listening

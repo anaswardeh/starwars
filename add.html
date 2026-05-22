@@ -1,15 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
-  <title>Star Wars - Express</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Star Wars - Express | Add Character</title>
   <!-- Latest compiled and minified CSS & JS -->
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-  <script src="https://code.jquery.com/jquery.js"></script>
+  <script src="https://code.jquery.com/jquery.min.js"></script>
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
-
 </head>
+
 <body>
 
   <div class="container">
@@ -28,33 +30,38 @@
             <h3><strong>Add Characters</strong></h3>
           </div>
           <div class="card-body">
-            <form method="POST" role="form">
+
+            <div id="form-alert" class="alert" role="alert" style="display: none;"></div>
+
+            <form id="add-form" role="form" novalidate>
 
               <div class="form-group">
                 <label for="name">Name</label>
-                <input type="text" class="form-control" id="name">
+                <input type="text" class="form-control" id="name" required>
               </div>
 
               <div class="form-group">
                 <label for="role">Role</label>
-                <input type="text" class="form-control" id="role">
+                <input type="text" class="form-control" id="role" required>
               </div>
 
               <div class="form-group">
                 <label for="age">Age</label>
-                <input type="text" class="form-control" id="age">
+                <input type="number" min="0" class="form-control" id="age" required>
               </div>
 
               <div class="form-group">
                 <label for="force-points">Force Points</label>
-                <input type="text" class="form-control" id="force-points">
+                <input type="number" min="0" class="form-control" id="force-points" required>
+              </div>
+
+              <div class="text-right">
+                <button type="submit" class="btn btn-primary btn-md" id="add-btn">
+                  <span class="fa fa-fire"></span> Add to the Force
+                </button>
               </div>
 
             </form>
-            <br>
-            <div class="text-right">
-              <button type="submit" class="btn btn-primary btn-md" id="add-btn"><span class="fa fa-fire"></span> Add to the Force</button>
-            </div>
           </div>
         </div>
 
@@ -63,9 +70,18 @@
   </div>
 
   <script type="text/javascript">
-    // Question: What does this code do?
-    $("#add-btn").on("click", function(event) {
+    function showAlert(type, message) {
+      $("#form-alert")
+        .removeClass("alert-success alert-danger")
+        .addClass("alert-" + type)
+        .text(message)
+        .show();
+    }
+
+    // Submit the form via AJAX so the page is not reloaded.
+    $("#add-form").on("submit", function(event) {
       event.preventDefault();
+
       var newCharacter = {
         name: $("#name").val().trim(),
         role: $("#role").val().trim(),
@@ -73,14 +89,34 @@
         forcePoints: $("#force-points").val().trim()
       };
 
-      // Question: What does this code do??
-      $.post("/api/characters", newCharacter)
-        .then(function(data) {
-          console.log("add.html", data);
-          alert("Adding character...");
+      if (!newCharacter.name || !newCharacter.role || !newCharacter.age || !newCharacter.forcePoints) {
+        showAlert("danger", "Please fill in every field before adding a character.");
+        return;
+      }
+
+      var $btn = $("#add-btn").prop("disabled", true);
+
+      $.ajax({
+        url: "/api/characters",
+        method: "POST",
+        contentType: "application/json",
+        data: JSON.stringify(newCharacter)
+      })
+        .done(function(data) {
+          showAlert("success", data.name + " has joined the Force!");
+          $("#add-form")[0].reset();
+        })
+        .fail(function(xhr) {
+          var message = (xhr.responseJSON && xhr.responseJSON.error) ||
+            "Unable to add character. Please try again.";
+          showAlert("danger", message);
+        })
+        .always(function() {
+          $btn.prop("disabled", false);
         });
     });
   </script>
 
 </body>
+
 </html>
