@@ -91,6 +91,11 @@ function parseNewCharacter(body) {
 // Routes
 // =============================================================
 
+// Health check for load balancers and container orchestrators
+app.get("/healthz", function(req, res) {
+  res.json({ status: "ok", uptime: process.uptime() });
+});
+
 // Basic route that sends the user first to the view page
 app.get("/", function(req, res) {
   res.sendFile(path.join(__dirname, "view.html"));
